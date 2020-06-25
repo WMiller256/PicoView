@@ -32,12 +32,13 @@
 #include <QPalette>
 #include <QPushButton>
 #include <QRect>
+#include <QShortcut>
 #include <QWidget>
 #include <QVBoxLayout>
 
 namespace fs = std::experimental::filesystem;
 
-const std::vector<std::string> supported = {".gif", ".tif", ".jpg", ".png"};
+const std::vector<std::string> supported = {".gif", ".tif", ".jpg", ".png", ".jpeg", ".webp"};
 
 template <typename T>
 bool contains(const std::vector<T> &v, const T &e) { return std::find(v.begin(), v.end(), e) != v.end(); }
@@ -70,6 +71,7 @@ private:
 	fs::path path;
 	std::vector<fs::path> files;
 	unsigned int cidx = 0;
+	std::string filter = "(";
 
 	QWidget* w;
 
