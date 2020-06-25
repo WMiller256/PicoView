@@ -2,3 +2,4 @@ moc*
 *.o
 .qmake.stash
 picoview
+Makefile
