@@ -21,11 +21,18 @@ PicoView::PicoView(QWidget* parent) : QMainWindow(parent) {
 	
 	img_container = new QLabel();
 	img_container->setAlignment(Qt::AlignCenter);
+//	img_container->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 	img = new QMovie();
 	info = new QLabel();
 	info->setAlignment(Qt::AlignCenter);
 
 	buildLayout();
+}
+
+void PicoView::resizeEvent(QResizeEvent* event) {
+	QMainWindow::resizeEvent(event);
+	w->setMaximumSize(this->size());
+	container_size = img_container->size();
 }
 
 void PicoView::open(const fs::path &p) {
@@ -45,6 +52,7 @@ void PicoView::getFileList() {
 			files.push_back(p);
 		}
 	}
+	sortby(sorting);
 }
 
 void PicoView::buildLayout() { 
@@ -66,7 +74,7 @@ void PicoView::buildLayout() {
 	w->setLayout(layout);
 }
 void PicoView::buildMenu() {
-	file = new QMenu("File", w);
+	file = new QMenu("&File", w);
 	file->show();
 	int idx = 0;
 	for (const auto &e : _file_actions) {
@@ -76,17 +84,19 @@ void PicoView::buildMenu() {
 	}
 }
 void PicoView::buildControls() {
+	// Layout for buttons
 	QHBoxLayout* _layout = new QHBoxLayout();
 
 	// Create keyboard shortcuts for buttons
-	std::vector<QShortcut*> shortcut = { new QShortcut(QKeySequence(Qt::Key_Left), this),
-									  	 new QShortcut(QKeySequence(Qt::Key_Delete), this),
-										 new QShortcut(QKeySequence(Qt::Key_Right), this) };
+	std::vector<Qt::Key> keys = {Qt::Key_Home, Qt::Key_Left, Qt::Key_Delete, Qt::Key_Right, Qt::Key_End};
+	std::vector<QShortcut*> shortcuts;
+	for (auto key : keys) shortcuts.push_back(new QShortcut(QKeySequence(key), this));
+	
 	int idx = 0;
 	for (const auto &e : _controls) {
 		QPushButton* button = new QPushButton(e.c_str());
 		// Connect keyboard shortcut
-		QObject::connect(shortcut[idx], &QShortcut::activated, this, _controls_slots[idx]);
+		QObject::connect(shortcuts[idx], &QShortcut::activated, this, _controls_slots[idx]);
 		// Connect button press to corresponding slot
 		QObject::connect(button, &QPushButton::clicked, this, _controls_slots[idx++]);
 		controls.insert({e, button});
@@ -103,6 +113,10 @@ void PicoView::buildControls() {
 	controls_layout = new QVBoxLayout();
 	controls_layout->addWidget(info);
 	controls_layout->addLayout(_layout);
+
+	// Adjust size hints for first and last buttons
+	controls.find("<<")->second->setMaximumWidth(30);
+	controls.find(">>")->second->setMaximumWidth(30);
 }
 
 // Slots
@@ -138,15 +152,13 @@ void PicoView::open_dir() {
 		current(0);
 	}
 }
-void PicoView::next() {
-	if (cidx < files.size() - 1) {
-		current(++cidx);
-	}
+
+void PicoView::firs() {
+	cidx = 0;
+	current(cidx);
 }
 void PicoView::prev() {
-	if (cidx > 0) {
-		current(--cidx);
-	}
+	if (cidx > 0) current(--cidx);
 }
 void PicoView::delt() {
 	bool success = fs::remove(files[cidx]);
@@ -159,15 +171,60 @@ void PicoView::delt() {
 		info->setText(QString::fromStdString("Failed to remove "+files[cidx].filename().string()+"."));
 	}
 }
+void PicoView::next() {
+	if (cidx < files.size() - 1) current(++cidx);
+}
+void PicoView::last() {
+	cidx = files.size() - 1;
+	current(cidx);
+}
 
 void PicoView::current(const int &i) {
 	if (i >= 0 && (unsigned int)i < files.size()) {
 		delete img;
 		img = new QMovie(QString::fromStdString(files[i].string()));
-		info->setText(QString::fromStdString(files[i].filename().string()));
+
+		// Have to start the movie before calling [->frameRect()]
 		img_container->setMovie(img);
-		img_size = img->frameRect();
 		img->start();
+		img_size = img->frameRect();
+		
+		// If current size of window does not accomodate image of new size, scale down accordingly		
+		if (img_size.height() > container_size.height() || img_size.width() > container_size.width()) {
+			img->setScaledSize(container_size);
+		}
+		info->setText(QString::fromStdString(files[i].filename().string()));
+	}
+
+	_prev = controls.find("Previous")->second;
+	_next = controls.find("Next")->second;
+
+	// Disable next and previous buttons when appropriate
+	if (i == 0) {
+		_prev->setEnabled(false);
+		controls.find("<<")->second->setEnabled(false);
+	}
+	if ((unsigned int)i == files.size() - 1) {
+		_next->setEnabled(false);
+		controls.find(">>")->second->setEnabled(false);
+	}
+
+	// Re-enable next and previous buttons as needed
+	if (!_prev->isEnabled() && i != 0) {
+		_prev->setEnabled(true);
+		controls.find("<<")->second->setEnabled(true);
+	}
+	if (!_next->isEnabled() && (unsigned int)i != files.size() - 1) {
+		_next->setEnabled(true);
+		controls.find(">>")->second->setEnabled(true);
+	}
+}
+
+void PicoView::sortby(SortMode m) {
+	switch(m) {
+		case SortMode::modified:
+			std::sort(files.begin(), files.end(), [](auto &l, auto &r) { return fs::last_write_time(l) < fs::last_write_time(r); });
+		break;
 	}
 }
 

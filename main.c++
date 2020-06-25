@@ -23,5 +23,8 @@ int main(int argn, char** argv) {
 
 	w.setWindowTitle("PicoView");
 	w.show();
+
+	// Force expansion of {img_container}
+	w.resize(w.size() + QSize(1, 1));
 	return a.exec();
 }
