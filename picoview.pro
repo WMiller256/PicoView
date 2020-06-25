@@ -1,5 +1,5 @@
 TEMPLATE = app
-TARGET = picoview
+TARGET = ~/bin/picoview
 
 QT = core gui widgets
 CONFIG += debug

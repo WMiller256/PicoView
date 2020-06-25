@@ -39,7 +39,7 @@
 
 namespace fs = std::experimental::filesystem;
 
-const std::vector<std::string> supported = {".gif", ".tif", ".jpg", ".png", ".jpeg", ".webp"};
+const std::vector<std::string> supported = {".gif", ".tif", ".jpg", ".png", ".jpeg"};
 
 enum SortMode { modified };
 
@@ -90,9 +90,12 @@ private:
 	QLabel* img_container;
 	QRect img_size;
 	QSize container_size;
+
 	QLabel* info;
+	QLabel* dimensions;	
 
 	QPushButton* _next;
+	QPushButton* _delt;
 	QPushButton* _prev;
 
 	QVBoxLayout* controls_layout;

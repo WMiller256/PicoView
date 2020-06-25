@@ -19,14 +19,19 @@ PicoView::PicoView(QWidget* parent) : QMainWindow(parent) {
 	w = new QWidget(this);
 	this->setCentralWidget(w);
 	
-	img_container = new QLabel();
+	img_container = new QLabel;
 	img_container->setAlignment(Qt::AlignCenter);
-//	img_container->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-	img = new QMovie();
-	info = new QLabel();
+	img = new QMovie;
+	
+	info = new QLabel;
+	dimensions = new QLabel;
 	info->setAlignment(Qt::AlignCenter);
+	dimensions->setAlignment(Qt::AlignCenter);
 
 	buildLayout();
+	if (files.empty()) {
+		current(-1);
+	}
 }
 
 void PicoView::resizeEvent(QResizeEvent* event) {
@@ -36,7 +41,7 @@ void PicoView::resizeEvent(QResizeEvent* event) {
 }
 
 void PicoView::open(const fs::path &p) {
-	path = p.parent_path();
+	path = fs::canonical(p);
 	getFileList();
 	current(0);
 }
@@ -85,7 +90,10 @@ void PicoView::buildMenu() {
 }
 void PicoView::buildControls() {
 	// Layout for buttons
-	QHBoxLayout* _layout = new QHBoxLayout();
+	QHBoxLayout* _layout = new QHBoxLayout;
+	
+	// Layout for info labels
+	QHBoxLayout* _info = new QHBoxLayout;
 
 	// Create keyboard shortcuts for buttons
 	std::vector<Qt::Key> keys = {Qt::Key_Home, Qt::Key_Left, Qt::Key_Delete, Qt::Key_Right, Qt::Key_End};
@@ -106,12 +114,17 @@ void PicoView::buildControls() {
 	// Make the delete button red in color
 	QPalette pal;
 	pal = controls.find("Delete")->second->palette();
-	pal.setColor(QPalette::ButtonText, QColor(Qt::red));
+	pal.setColor(QPalette::Active, QPalette::ButtonText, QColor(Qt::red));
 	controls.find("Delete")->second->setPalette(pal);
+
+	// Add the information labels
+	dimensions->setMaximumWidth(200);
+	_info->addWidget(info);
+	_info->addWidget(dimensions);
 
 	// Add the info and controls to controls_layout
 	controls_layout = new QVBoxLayout();
-	controls_layout->addWidget(info);
+	controls_layout->addLayout(_info);
 	controls_layout->addLayout(_layout);
 
 	// Adjust size hints for first and last buttons
@@ -125,10 +138,10 @@ void PicoView::open_file() {
 	std::string _file = QFileDialog::getOpenFileName(this, tr("Open Image"), path.string().c_str(), 
 		tr(("Image Files "+filter).c_str())).toStdString();
 	if (_file == "") return;
-	fs::path file(_file);
+	fs::path file = fs::canonical(fs::path(_file));
 
 	if (file.parent_path() != path) {
-		path = file.parent_path();
+		path = fs::canonical(file);
 		getFileList();
 	}
 
@@ -147,15 +160,14 @@ void PicoView::open_dir() {
 	fs::path new_path(_dir);
 	
 	if (new_path != path) {
-		path = new_path;
+		path = fs::canonical(new_path);
 		getFileList();
 		current(0);
 	}
 }
 
 void PicoView::firs() {
-	cidx = 0;
-	current(cidx);
+	current(0);
 }
 void PicoView::prev() {
 	if (cidx > 0) current(--cidx);
@@ -175,11 +187,12 @@ void PicoView::next() {
 	if (cidx < files.size() - 1) current(++cidx);
 }
 void PicoView::last() {
-	cidx = files.size() - 1;
-	current(cidx);
+	current(files.size() - 1);
 }
 
 void PicoView::current(const int &i) {
+	// TODO Frame count checking: .gif files with only 1 frame should not be displayed as a QMovie
+	cidx = i;
 	if (i >= 0 && (unsigned int)i < files.size()) {
 		delete img;
 		img = new QMovie(QString::fromStdString(files[i].string()));
@@ -188,33 +201,34 @@ void PicoView::current(const int &i) {
 		img_container->setMovie(img);
 		img->start();
 		img_size = img->frameRect();
-		
-		// If current size of window does not accomodate image of new size, scale down accordingly		
-		if (img_size.height() > container_size.height() || img_size.width() > container_size.width()) {
-			img->setScaledSize(container_size);
-		}
+
+		dimensions->setText(QString::fromStdString(std::to_string(img_size.width())+"x"+std::to_string(img_size.height())));
 		info->setText(QString::fromStdString(files[i].filename().string()));
 	}
 
 	_prev = controls.find("Previous")->second;
+	_delt = controls.find("Delete")->second;
 	_next = controls.find("Next")->second;
 
 	// Disable next and previous buttons when appropriate
-	if (i == 0) {
+	bool empty = files.empty();
+	if (i == 0 || empty) {
 		_prev->setEnabled(false);
 		controls.find("<<")->second->setEnabled(false);
 	}
-	if ((unsigned int)i == files.size() - 1) {
+	if ((unsigned int)i == files.size() - 1 || empty) {
 		_next->setEnabled(false);
 		controls.find(">>")->second->setEnabled(false);
 	}
+	if (empty && _delt->isEnabled()) _delt->setEnabled(false);
+	else _delt->setEnabled(true);
 
 	// Re-enable next and previous buttons as needed
-	if (!_prev->isEnabled() && i != 0) {
+	if (!_prev->isEnabled() && i != 0 && !empty) {
 		_prev->setEnabled(true);
 		controls.find("<<")->second->setEnabled(true);
 	}
-	if (!_next->isEnabled() && (unsigned int)i != files.size() - 1) {
+	if (!_next->isEnabled() && (unsigned int)i != files.size() - 1 && !empty) {
 		_next->setEnabled(true);
 		controls.find(">>")->second->setEnabled(true);
 	}
