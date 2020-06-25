@@ -62,6 +62,9 @@ public:
 
 	void sortby(SortMode m);
 
+	void open_file(fs::path _file);
+	void open_dir(fs::path _dir);
+
 public slots:
 	void open_file();
 	void open_dir();

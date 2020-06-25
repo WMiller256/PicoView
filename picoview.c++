@@ -42,13 +42,14 @@ void PicoView::resizeEvent(QResizeEvent* event) {
 
 void PicoView::open(const fs::path &p) {
 	path = fs::canonical(p);
-	getFileList();
-	current(0);
+	if (fs::is_directory(path)) open_dir(path);
+	else open_file(path);
 }
 
 void PicoView::getFileList() {
 	std::string ext;
 	fs::path p;
+	files = {};
 	for (const auto &e : fs::directory_iterator(path)) {
 		p = e.path();
 		ext = tolower(p.extension().string());
@@ -134,14 +135,17 @@ void PicoView::buildControls() {
 
 // Slots
 void PicoView::open_file() {
-
 	std::string _file = QFileDialog::getOpenFileName(this, tr("Open Image"), path.string().c_str(), 
 		tr(("Image Files "+filter).c_str())).toStdString();
 	if (_file == "") return;
-	fs::path file = fs::canonical(fs::path(_file));
+	open_file(fs::path(_file));
+}
+
+void PicoView::open_file(fs::path _file) {
+	fs::path file = fs::canonical(_file);
 
 	if (file.parent_path() != path) {
-		path = fs::canonical(file);
+		path = fs::canonical(file).remove_filename();
 		getFileList();
 	}
 
@@ -154,13 +158,14 @@ void PicoView::open_file() {
 	current(cidx);
 }
 void PicoView::open_dir() {
-
 	std::string _dir = QFileDialog::getExistingDirectory(this, tr("Directory"), path.string().c_str()).toStdString();
 	if (_dir == "") return; 
-	fs::path new_path(_dir);
+	open_dir(fs::path(_dir));
 	
-	if (new_path != path) {
-		path = fs::canonical(new_path);
+}
+void PicoView::open_dir(fs::path _dir) {
+	if (_dir != path) {
+		path = fs::canonical(_dir);
 		getFileList();
 		current(0);
 	}
