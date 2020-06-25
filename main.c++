@@ -14,9 +14,14 @@
 int main(int argn, char** argv) {
 	QApplication a (argn, argv);
 	PicoView w;
+	
+	fs::path path(".");
+	if (argn > 1) {
+		path = fs::path(argv[1]);
+		w.open(path);
+	}
+
 	w.setWindowTitle("PicoView");
-//	w.showMaximized();
-//	w.resize(800, 600);
 	w.show();
 	return a.exec();
 }

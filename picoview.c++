@@ -14,19 +14,25 @@ PicoView::PicoView(QWidget* parent) : QMainWindow(parent) {
 	w = new QWidget(this);
 	this->setCentralWidget(w);
 	
-	selected_directory = QFileDialog::getExistingDirectory(this, tr("Directory"), ".").toStdString();
 	img_container = new QLabel();
 	img_container->setAlignment(Qt::AlignCenter);
 	img = new QMovie();
+	info = new QLabel();
+	info->setAlignment(Qt::AlignCenter);
 
-	getFileList();
 	buildLayout();
+}
+
+void PicoView::open(const fs::path &p) {
+	path = p.parent_path();
+	getFileList();
+	current(0);
 }
 
 void PicoView::getFileList() {
 	std::string ext;
 	fs::path p;
-	for (const auto &e : fs::directory_iterator(selected_directory)) {
+	for (const auto &e : fs::directory_iterator(path)) {
 		p = e.path();
 		ext = tolower(p.extension().string());
 		if (contains<std::string>(supported, ext)) {
@@ -37,39 +43,79 @@ void PicoView::getFileList() {
 }
 
 void PicoView::buildLayout() { 
-	layout = new QHBoxLayout();
-	img_canvas = new QVBoxLayout();
+	layout = new QHBoxLayout;
+	img_canvas = new QVBoxLayout;
+	menu = new QMenuBar;
 
+	buildMenu();
 	buildControls();
 
-	if (files.size() > 0) {
-		current(0);
-	}
+	menu->addMenu(file);
+
 	img_container->show();
+	img_canvas->addWidget(menu);
 	img_canvas->addWidget(img_container, Qt::AlignCenter);
 	img_canvas->addLayout(controls_layout);
+	
 	layout->addLayout(img_canvas);
 	w->setLayout(layout);
 }
-
+void PicoView::buildMenu() {
+	file = new QMenu("File", w);
+	file->show();
+	int idx = 0;
+	for (const auto &e : _file_actions) {
+		QAction* act = new QAction(e.c_str(), this);
+		QObject::connect(act, &QAction::triggered, this, _file_slots[idx++]);
+		file->addAction(act);
+	}
+}
 void PicoView::buildControls() {
-	controls_layout = new QHBoxLayout();
+	QHBoxLayout* _layout = new QHBoxLayout();
 	QPalette pal;
+	int idx = 0;
 	for (const auto &e : _controls) {
 		QPushButton* button = new QPushButton(e.c_str());
+		QObject::connect(button, &QPushButton::clicked, this, _controls_slots[idx++]);
 		controls.insert({e, button});
-		controls_layout->addWidget(button);
+		_layout->addWidget(button);
 	}
-	QObject::connect(controls.find("Next")->second, &QPushButton::clicked, this, &PicoView::next);
-	QObject::connect(controls.find("Delete")->second, &QPushButton::clicked, this, &PicoView::delt);
-	QObject::connect(controls.find("Previous")->second, &QPushButton::clicked, this, &PicoView::prev);
 
 	// Make the delete button red in color
 	pal = controls.find("Delete")->second->palette();
 	pal.setColor(QPalette::ButtonText, QColor(Qt::red));
 	controls.find("Delete")->second->setPalette(pal);
+
+	// Add the info and controls to controls_layout
+	controls_layout = new QVBoxLayout();
+	controls_layout->addWidget(info);
+	controls_layout->addLayout(_layout);
 }
 
+// Slots
+void PicoView::open_file() {
+	fs::path file(QFileDialog::getOpenFileName(this, tr("Open Image"), path.string().c_str(), tr("Image Files (*.png, *.tif, *.gif, *.jpg)")).toStdString());
+	if (file.parent_path() != path) {
+		path = file.parent_path();
+		getFileList();
+	}
+
+	auto found = std::find(files.begin(), files.end(), file.filename().string());
+	if (found == files.end()) {
+		info->setText(QString::fromStdString("Error opening "+file.filename().string()+"."));
+		cidx = 0;
+	}
+	else cidx = std::distance(files.begin(), found); 
+	current(cidx);
+}
+void PicoView::open_dir() {
+	fs::path new_path(QFileDialog::getExistingDirectory(this, tr("Directory"), path.string().c_str()).toStdString());
+	if (new_path != path) {
+		path = new_path;
+		getFileList();
+		current(0);
+	}
+}
 void PicoView::next() {
 	if (cidx < files.size() - 1) {
 		current(++cidx);
@@ -81,13 +127,22 @@ void PicoView::prev() {
 	}
 }
 void PicoView::delt() {
-	
+	bool success = fs::remove(files[cidx]);
+	if (success) {
+		info->setText(QString::fromStdString("Removed "+files[cidx].filename().string()+"."));
+		files.erase(files.begin() + cidx);
+		current(cidx);
+	}
+	else {
+		info->setText(QString::fromStdString("Failed to remove "+files[cidx].filename().string()+"."));
+	}
 }
 
-void PicoView::current(const unsigned int &i) {
-	if (i < files.size()) {
+void PicoView::current(const int &i) {
+	if (i >= 0 && (unsigned int)i < files.size()) {
 		delete img;
 		img = new QMovie(QString::fromStdString(files[i].string()));
+		info->setText(QString::fromStdString(files[i].filename().string()));
 		img_container->setMovie(img);
 		img_size = img->frameRect();
 		img->start();

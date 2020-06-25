@@ -1,7 +1,7 @@
 TEMPLATE = app
 TARGET = picoview
 
-QT = core gui
+QT = core gui widgets
 CONFIG += debug
 LIBS += -lstdc++fs
 
