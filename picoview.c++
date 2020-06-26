@@ -21,7 +21,6 @@ PicoView::PicoView(QWidget* parent) : QMainWindow(parent) {
 	
 	img_container = new QLabel;
 	img_container->setAlignment(Qt::AlignCenter);
-	img_container->setMinimumSize(QSize(600, 400));
 	container_size = QSize(600, 400);
 	
 	mov = new QMovie;
@@ -214,8 +213,14 @@ void PicoView::current(const int &i) {
 
 			// Have to start the movie before calling [->frameRect()]
 			img_container->setMovie(mov);
-			mov->start();
+			mov->jumpToNextFrame();
 			img_size = mov->frameRect();
+
+			// Attempt to down scale the movie to fit container (if necessary), without compromising the native aspect
+			double aspect = (double)img_size.width() / (double)img_size.height();
+			if (img_size.width() > container_size.width()) mov->setScaledSize(QSize(container_size.width(), container_size.width() / aspect));
+			if (img_size.height() > container_size.height()) mov->setScaledSize(QSize(container_size.height() * aspect, container_size.height()));
+			mov->start();
 		}
 		else {
 			img.load(QString::fromStdString(files[i].string()));
