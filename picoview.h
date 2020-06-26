@@ -61,9 +61,10 @@ public:
 	void current(const int &i);
 
 	void sortby(SortMode m);
+	bool isMovie(fs::path f);
 
-	void open_file(fs::path _file);
-	void open_dir(fs::path _dir);
+	void open_file(fs::path _file, bool checking = true);
+	void open_dir(fs::path _dir, bool checking = true);
 
 public slots:
 	void open_file();
@@ -89,8 +90,9 @@ private:
 	QVBoxLayout* img_canvas;
 	QMenuBar* menu;
 
-	QMovie* img;
 	QLabel* img_container;
+	QMovie* mov;
+	QImage img;
 	QRect img_size;
 	QSize container_size;
 

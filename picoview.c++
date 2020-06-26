@@ -21,7 +21,10 @@ PicoView::PicoView(QWidget* parent) : QMainWindow(parent) {
 	
 	img_container = new QLabel;
 	img_container->setAlignment(Qt::AlignCenter);
-	img = new QMovie;
+	img_container->setMinimumSize(QSize(600, 400));
+	container_size = QSize(600, 400);
+	
+	mov = new QMovie;
 	
 	info = new QLabel;
 	dimensions = new QLabel;
@@ -42,8 +45,8 @@ void PicoView::resizeEvent(QResizeEvent* event) {
 
 void PicoView::open(const fs::path &p) {
 	path = fs::canonical(p);
-	if (fs::is_directory(path)) open_dir(path);
-	else open_file(path);
+	if (fs::is_directory(path)) open_dir(path, false);
+	else open_file(path, false);
 }
 
 void PicoView::getFileList() {
@@ -141,14 +144,16 @@ void PicoView::open_file() {
 	open_file(fs::path(_file));
 }
 
-void PicoView::open_file(fs::path _file) {
+void PicoView::open_file(fs::path _file, bool checking) {
 	fs::path file = fs::canonical(_file);
 
-	if (file.parent_path() != path) {
-		path = fs::canonical(file).remove_filename();
-		getFileList();
+	if (checking) {
+		if (file.parent_path() == path) goto _open_file;
 	}
+	path = fs::canonical(file).remove_filename();
+	getFileList();
 
+_open_file:
 	auto found = std::find(files.begin(), files.end(), file);
 	if (found == files.end()) {
 		info->setText(QString::fromStdString("Error opening "+file.filename().string()+"."));
@@ -163,12 +168,13 @@ void PicoView::open_dir() {
 	open_dir(fs::path(_dir));
 	
 }
-void PicoView::open_dir(fs::path _dir) {
-	if (_dir != path) {
-		path = fs::canonical(_dir);
-		getFileList();
-		current(0);
+void PicoView::open_dir(fs::path _dir, bool checking) {
+	if (checking) {
+		if (_dir == path) return;
 	}
+	path = fs::canonical(_dir);
+	getFileList();
+	current(0);
 }
 
 void PicoView::firs() {
@@ -199,13 +205,30 @@ void PicoView::current(const int &i) {
 	// TODO Frame count checking: .gif files with only 1 frame should not be displayed as a QMovie
 	cidx = i;
 	if (i >= 0 && (unsigned int)i < files.size()) {
-		delete img;
-		img = new QMovie(QString::fromStdString(files[i].string()));
+		if (mov != NULL) {
+			delete mov;
+			mov = NULL;
+		}
+		if (isMovie(files[i])) {
+			mov = new QMovie(QString::fromStdString(files[i].string()));
 
-		// Have to start the movie before calling [->frameRect()]
-		img_container->setMovie(img);
-		img->start();
-		img_size = img->frameRect();
+			// Have to start the movie before calling [->frameRect()]
+			img_container->setMovie(mov);
+			mov->start();
+			img_size = mov->frameRect();
+		}
+		else {
+			img.load(QString::fromStdString(files[i].string()));
+			QPixmap p = QPixmap::fromImage(img);
+			img_size = p.rect();
+
+			// If the image's native resolution exceeds the container size, attempt to scale down accordingly
+			if (img_size.height() > container_size.height() || img_size.width() > container_size.width()) {
+				p = p.scaled(container_size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+			}
+
+			img_container->setPixmap(p);
+		}
 
 		dimensions->setText(QString::fromStdString(std::to_string(img_size.width())+"x"+std::to_string(img_size.height())));
 		info->setText(QString::fromStdString(files[i].filename().string()));
@@ -245,6 +268,10 @@ void PicoView::sortby(SortMode m) {
 			std::sort(files.begin(), files.end(), [](auto &l, auto &r) { return fs::last_write_time(l) < fs::last_write_time(r); });
 		break;
 	}
+}
+bool PicoView::isMovie(fs::path f) {
+	QMovie m(QString::fromStdString(f.string()));
+	return m.frameCount() > 1;
 }
 
 std::string tolower(const std::string &s) {
