@@ -64,16 +64,30 @@ void PicoView::getFileList() {
 void PicoView::buildLayout() { 
 	layout = new QHBoxLayout;
 	img_canvas = new QVBoxLayout;
+	tbar_layout = new QHBoxLayout;
 	menu = new QMenuBar;
 
 	buildMenu();
 	buildControls();
 
+	// Create and connect refresh button with F5 shortcut
+	_refr = new QPushButton(w);
+	QShortcut* _refr_shortcut = new QShortcut(QKeySequence::Refresh, this);
+	QObject::connect(_refr, &QPushButton::clicked, this, &PicoView::refresh);
+	QObject::connect(_refr_shortcut, &QShortcut::activated, this, &PicoView::refresh);
+
+	// Load the refresh icon and set it for the refresh button
+	QIcon r(QPixmap(":/Refresh.png"));
+	_refr->setIcon(r);
+	_refr->setIconSize(QSize(25, 25));
+	tbar_layout->addWidget(menu);
+	tbar_layout->addWidget(_refr);
+	
 	img_label->show();
-	img_canvas->addWidget(menu);
+	img_canvas->addLayout(tbar_layout);
 	img_canvas->addWidget(img_label, Qt::AlignCenter);
 	img_canvas->addLayout(controls_layout);
-	
+
 	layout->addLayout(img_canvas);
 	w->setLayout(layout);
 }
@@ -148,7 +162,6 @@ void PicoView::buildControls() {
 }
 
 void PicoView::current(const int &i) {
-	// TODO Frame count checking: .gif files with only 1 frame should not be displayed as a QMovie
 	cidx = i;
 	if (i >= 0 && (unsigned int)i < files.size()) {
 		if (mov != NULL) {
@@ -246,13 +259,13 @@ void PicoView::open_dir() {
 	open_dir(fs::path(_dir));
 	
 }
-void PicoView::open_dir(fs::path _dir, bool checking) {
+void PicoView::open_dir(fs::path _dir, size_t idx, bool checking) {
 	if (checking) {
 		if (_dir == path) return;
 	}
 	path = fs::canonical(_dir);
 	getFileList();
-	current(0);
+	current(idx);
 }
 
 void PicoView::sortby(QString s) {
@@ -277,6 +290,11 @@ void PicoView::sortby(QString s) {
 
 	// TODO This can be improved: as it is animations restart on every [sortby]
 	current(std::distance(files.begin(), std::find(files.begin(), files.end(), _file)));
+}
+void PicoView::refresh() {
+	img_label->hide();
+	open_dir(path, cidx, false);
+	img_label->show();
 }
 
 void PicoView::firs() {

@@ -10,3 +10,5 @@ greaterThan(QT_MAJOR_VERSION, 5): QT += widgets
 SOURCES += main.c++ picoview.c++
 HEADERS += picoview.h
 
+RESOURCES += picoview.qrc
+

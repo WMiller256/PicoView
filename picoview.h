@@ -67,13 +67,14 @@ public:
 	bool isMovie(fs::path f);
 
 	void open_file(fs::path _file, bool checking = true);
-	void open_dir(fs::path _dir, bool checking = true);
+	void open_dir(fs::path _dir, size_t idx = 0, bool checking = true);
 
 public slots:
 	void open_file();
 	void open_dir();
 
 	void sortby(QString s);
+	void refresh();
 
 	void firs();
 	void prev();
@@ -93,8 +94,10 @@ private:
 
 	QHBoxLayout* layout;
 	QVBoxLayout* img_canvas;
+	QHBoxLayout* tbar_layout;
 	QMenuBar* menu;
 
+	QPushButton* _refr;
 	QLabel* img_label;
 	QMovie* mov;
 	QImage img;
