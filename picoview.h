@@ -51,7 +51,7 @@ class PicoView : public QMainWindow {
 	Q_OBJECT
 
 public:
-	PicoView(QWidget* parent = Q_NULLPTR);
+	PicoView(QPalette palette, QWidget* parent = Q_NULLPTR);
 
 	void resizeEvent(QResizeEvent* e);
 
@@ -85,12 +85,13 @@ public slots:
 private:
 	fs::path path;
 	std::vector<fs::path> files;
-	unsigned int cidx = 0;
+	int cidx = -1;
 
 	QString sorting = "Modified";
 	std::string filter = "(";
 
 	PicoWidget* w;
+	QPalette palette;
 
 	QHBoxLayout* layout;
 	QVBoxLayout* img_canvas;
@@ -144,3 +145,6 @@ bool contains(const std::vector<T> &v, const T &e) { return std::find(v.begin(),
 
 // Non-destrucitvely converts string {s} to lower case
 std::string tolower(const std::string &s);
+
+// Automatically elide label text
+void setLabelText(QLabel* label, QString text);

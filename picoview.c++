@@ -10,13 +10,14 @@
 
 #include "picoview.h"
 
-PicoView::PicoView(QWidget* parent) : QMainWindow(parent) {
+PicoView::PicoView(QPalette _palette, QWidget* parent) : QMainWindow(parent), palette(_palette) {
 	for (const auto &s : supported) {
 		if (s != supported.back()) filter += "*"+s+" ";
 		else filter += 	"*"+s+")";	
 	}
 
 	w = new PicoWidget(this, this);
+	w->setPalette(palette);
 	this->setCentralWidget(w);
 	
 	img_label = new QLabel;
@@ -25,19 +26,23 @@ PicoView::PicoView(QWidget* parent) : QMainWindow(parent) {
 	img_label->setMinimumSize(label_size);
 	
 	mov = new QMovie;
-	
+
+	// Create image title and dimensions labels	
 	info = new QLabel;
-	dimensions = new QLabel;
+	info->setMinimumSize(QSize(0, info->minimumSizeHint().height()));
 	info->setAlignment(Qt::AlignCenter);
+	dimensions = new QLabel;
 	dimensions->setAlignment(Qt::AlignCenter);
 
 	buildLayout();
+	current(-1);
 }
 
 void PicoView::resizeEvent(QResizeEvent* e) {
 	QMainWindow::resizeEvent(e);
 	w->setMaximumSize(this->size());
 	label_size = img_label->size();
+	if (!files.empty()) setLabelText(info, QString::fromStdString(files[cidx].filename().string()));
 }
 
 void PicoView::open(const fs::path &p) {
@@ -148,6 +153,7 @@ void PicoView::buildControls() {
 
 	// Add the information labels
 	dimensions->setMaximumWidth(200);
+	info->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 	_info->addWidget(info);
 	_info->addWidget(dimensions);
 
@@ -196,7 +202,7 @@ void PicoView::current(const int &i) {
 		}
 
 		dimensions->setText(QString::fromStdString(std::to_string(img_size.width())+"x"+std::to_string(img_size.height())));
-		info->setText(QString::fromStdString(files[i].filename().string()));
+		setLabelText(info, QString::fromStdString(files[i].filename().string()));
 	}
 
 	_prev = controls.find("Previous")->second;
@@ -215,6 +221,8 @@ void PicoView::current(const int &i) {
 	}
 	if (empty && _delt->isEnabled()) _delt->setEnabled(false);
 	else _delt->setEnabled(true);
+	if (empty && _refr->isEnabled()) _refr->setEnabled(false);
+	else _refr->setEnabled(true);
 
 	// Re-enable next and previous buttons as needed
 	if (!_prev->isEnabled() && i != 0 && !empty) {
@@ -247,7 +255,7 @@ void PicoView::open_file(fs::path _file, bool checking) {
 _open_file:
 	auto found = std::find(files.begin(), files.end(), file);
 	if (found == files.end()) {
-		info->setText(QString::fromStdString("Error opening "+file.filename().string()+"."));
+		setLabelText(info, QString::fromStdString("Error opening "+file.filename().string()+"."));
 		cidx = 0;
 	}
 	else cidx = std::distance(files.begin(), found); 
@@ -269,6 +277,7 @@ void PicoView::open_dir(fs::path _dir, size_t idx, bool checking) {
 }
 
 void PicoView::sortby(QString s) {
+	if (cidx < 0) return;
 	SortMode m = _sort_options.find(s.toStdString())->second;
 	fs::path _file = files[cidx];
 	sorting = s;
@@ -306,16 +315,16 @@ void PicoView::prev() {
 void PicoView::delt() {
 	bool success = fs::remove(files[cidx]);
 	if (success) {
-		info->setText(QString::fromStdString("Removed "+files[cidx].filename().string()+"."));
+		setLabelText(info, QString::fromStdString("Removed "+files[cidx].filename().string()+"."));
 		files.erase(files.begin() + cidx);
 		current(cidx);
 	}
 	else {
-		info->setText(QString::fromStdString("Failed to remove "+files[cidx].filename().string()+"."));
+		setLabelText(info, QString::fromStdString("Failed to remove "+files[cidx].filename().string()+"."));
 	}
 }
 void PicoView::next() {
-	if (cidx < files.size() - 1) current(++cidx);
+	if ((unsigned int)cidx < files.size() - 1) current(++cidx);
 }
 void PicoView::last() {
 	current(files.size() - 1);
@@ -336,4 +345,9 @@ std::string tolower(const std::string &s) {
 	std::string ls(s);
 	std::transform(ls.begin(), ls.end(), ls.begin(), [](unsigned char c) { return std::tolower(c); }); 
 	return ls;
+}
+void setLabelText(QLabel* label, QString text) {
+	QFontMetrics metric(label->font());
+	QString clipped = metric.elidedText(text, Qt::ElideRight, label->width());
+	label->setText(clipped);
 }
