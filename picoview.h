@@ -33,6 +33,7 @@
 #include <QPushButton>
 #include <QRect>
 #include <QShortcut>
+#include <QSignalMapper>
 #include <QSizePolicy>
 #include <QWidget>
 #include <QVBoxLayout>
@@ -41,7 +42,10 @@ namespace fs = std::experimental::filesystem;
 
 const std::vector<std::string> supported = {".gif", ".tif", ".jpg", ".png", ".jpeg"};
 
-enum SortMode { modified };
+enum SortMode { name, modified, type };
+
+// Forward declarations
+class PicoWidget;
 
 class PicoView : public QMainWindow {
 	Q_OBJECT
@@ -49,7 +53,7 @@ class PicoView : public QMainWindow {
 public:
 	PicoView(QWidget* parent = Q_NULLPTR);
 
-	void resizeEvent(QResizeEvent* event);
+	void resizeEvent(QResizeEvent* e);
 
 	void open(const fs::path &p);
 
@@ -60,7 +64,6 @@ public:
 
 	void current(const int &i);
 
-	void sortby(SortMode m);
 	bool isMovie(fs::path f);
 
 	void open_file(fs::path _file, bool checking = true);
@@ -69,6 +72,8 @@ public:
 public slots:
 	void open_file();
 	void open_dir();
+
+	void sortby(QString s);
 
 	void firs();
 	void prev();
@@ -81,20 +86,20 @@ private:
 	std::vector<fs::path> files;
 	unsigned int cidx = 0;
 
-	SortMode sorting = modified;
+	QString sorting = "Modified";
 	std::string filter = "(";
 
-	QWidget* w;
+	PicoWidget* w;
 
 	QHBoxLayout* layout;
 	QVBoxLayout* img_canvas;
 	QMenuBar* menu;
 
-	QLabel* img_container;
+	QLabel* img_label;
 	QMovie* mov;
 	QImage img;
 	QRect img_size;
-	QSize container_size;
+	QSize label_size;
 
 	QLabel* info;
 	QLabel* dimensions;	
@@ -111,6 +116,23 @@ private:
 	QMenu* file;
 	std::vector<std::string> _file_actions = {"Open File...", "Open Directory..."};
 	std::vector<void (PicoView::*)()> _file_slots = {&PicoView::open_file, &PicoView::open_dir};
+
+	QMenu* sort;
+	std::map<std::string, SortMode> _sort_options = {{"Name", name},
+													 {"Modified", modified}, 
+													 {"Type", type}};
+};
+
+class PicoWidget : public QWidget {
+	Q_OBJECT
+
+public: 
+	PicoWidget( PicoView* _window, QWidget* parent = Q_NULLPTR) : QWidget(parent), window(_window) {}
+
+	void resizeEvent(QResizeEvent* e);
+
+private:
+	PicoView* window;
 };
 
 // Checks if vector {v} contains element {e}

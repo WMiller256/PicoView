@@ -16,12 +16,13 @@ PicoView::PicoView(QWidget* parent) : QMainWindow(parent) {
 		else filter += 	"*"+s+")";	
 	}
 
-	w = new QWidget(this);
+	w = new PicoWidget(this, this);
 	this->setCentralWidget(w);
 	
-	img_container = new QLabel;
-	img_container->setAlignment(Qt::AlignCenter);
-	container_size = QSize(600, 400);
+	img_label = new QLabel;
+	img_label->setAlignment(Qt::AlignCenter);
+	label_size = QSize(300, 200);
+	img_label->setMinimumSize(label_size);
 	
 	mov = new QMovie;
 	
@@ -31,15 +32,12 @@ PicoView::PicoView(QWidget* parent) : QMainWindow(parent) {
 	dimensions->setAlignment(Qt::AlignCenter);
 
 	buildLayout();
-	if (files.empty()) {
-		current(-1);
-	}
 }
 
-void PicoView::resizeEvent(QResizeEvent* event) {
-	QMainWindow::resizeEvent(event);
+void PicoView::resizeEvent(QResizeEvent* e) {
+	QMainWindow::resizeEvent(e);
 	w->setMaximumSize(this->size());
-	container_size = img_container->size();
+	label_size = img_label->size();
 }
 
 void PicoView::open(const fs::path &p) {
@@ -71,17 +69,16 @@ void PicoView::buildLayout() {
 	buildMenu();
 	buildControls();
 
-	menu->addMenu(file);
-
-	img_container->show();
+	img_label->show();
 	img_canvas->addWidget(menu);
-	img_canvas->addWidget(img_container, Qt::AlignCenter);
+	img_canvas->addWidget(img_label, Qt::AlignCenter);
 	img_canvas->addLayout(controls_layout);
 	
 	layout->addLayout(img_canvas);
 	w->setLayout(layout);
 }
 void PicoView::buildMenu() {
+	// Populate file menu from _file_actions vector
 	file = new QMenu("&File", w);
 	file->show();
 	int idx = 0;
@@ -90,6 +87,21 @@ void PicoView::buildMenu() {
 		QObject::connect(act, &QAction::triggered, this, _file_slots[idx++]);
 		file->addAction(act);
 	}
+
+	// Populate sorting menu based on _sort_options map
+	QSignalMapper* mapper = new QSignalMapper(this);
+	sort = new QMenu("&Sort", w);
+	sort->show();
+	for (const auto &e : _sort_options) {
+		QAction* act = new QAction(e.first.c_str(), this);
+		QObject::connect(act, SIGNAL(triggered()), mapper, SLOT(map()));
+		mapper->setMapping(act, QString::fromStdString(e.first));
+		sort->addAction(act);
+	}
+	QObject::connect(mapper, SIGNAL(mapped(QString)), this, SLOT(sortby(QString)));
+
+	menu->addMenu(file);
+	menu->addMenu(sort);
 }
 void PicoView::buildControls() {
 	// Layout for buttons
@@ -135,6 +147,73 @@ void PicoView::buildControls() {
 	controls.find(">>")->second->setMaximumWidth(30);
 }
 
+void PicoView::current(const int &i) {
+	// TODO Frame count checking: .gif files with only 1 frame should not be displayed as a QMovie
+	cidx = i;
+	if (i >= 0 && (unsigned int)i < files.size()) {
+		if (mov != NULL) {
+			delete mov;
+			mov = NULL;
+		}
+		if (isMovie(files[i])) {
+			mov = new QMovie(QString::fromStdString(files[i].string()));
+
+			// Have to start the movie before calling [->frameRect()]
+			img_label->setMovie(mov);
+			mov->jumpToNextFrame();
+			img_size = mov->frameRect();
+
+			// Attempt to down scale the movie to fit container (if necessary), without compromising the native aspect
+			double aspect = (double)img_size.width() / (double)img_size.height();
+			if (img_size.width() > label_size.width()) mov->setScaledSize(QSize(label_size.width(), label_size.width() / aspect));
+			if (img_size.height() > label_size.height()) mov->setScaledSize(QSize(label_size.height() * aspect, label_size.height()));
+			mov->start();
+		}
+		else {
+			img.load(QString::fromStdString(files[i].string()));
+			QPixmap p = QPixmap::fromImage(img);
+			img_size = p.rect();
+
+			// If the image's native resolution exceeds the container size, attempt to scale down accordingly
+			if (img_size.height() > label_size.height() || img_size.width() > label_size.width()) {
+				p = p.scaled(label_size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+			}
+
+			img_label->setPixmap(p);
+		}
+
+		dimensions->setText(QString::fromStdString(std::to_string(img_size.width())+"x"+std::to_string(img_size.height())));
+		info->setText(QString::fromStdString(files[i].filename().string()));
+	}
+
+	_prev = controls.find("Previous")->second;
+	_delt = controls.find("Delete")->second;
+	_next = controls.find("Next")->second;
+
+	// Disable next and previous buttons when appropriate
+	bool empty = files.empty();
+	if (i == 0 || empty) {
+		_prev->setEnabled(false);
+		controls.find("<<")->second->setEnabled(false);
+	}
+	if ((unsigned int)i == files.size() - 1 || empty) {
+		_next->setEnabled(false);
+		controls.find(">>")->second->setEnabled(false);
+	}
+	if (empty && _delt->isEnabled()) _delt->setEnabled(false);
+	else _delt->setEnabled(true);
+
+	// Re-enable next and previous buttons as needed
+	if (!_prev->isEnabled() && i != 0 && !empty) {
+		_prev->setEnabled(true);
+		controls.find("<<")->second->setEnabled(true);
+	}
+	if (!_next->isEnabled() && (unsigned int)i != files.size() - 1 && !empty) {
+		_next->setEnabled(true);
+		controls.find(">>")->second->setEnabled(true);
+	}
+}
+
 // Slots
 void PicoView::open_file() {
 	std::string _file = QFileDialog::getOpenFileName(this, tr("Open Image"), path.string().c_str(), 
@@ -176,6 +255,30 @@ void PicoView::open_dir(fs::path _dir, bool checking) {
 	current(0);
 }
 
+void PicoView::sortby(QString s) {
+	SortMode m = _sort_options.find(s.toStdString())->second;
+	fs::path _file = files[cidx];
+	sorting = s;
+	switch(m) {
+		case SortMode::name:
+			std::sort(files.begin(), files.end(), [](auto &l, auto &r) { return l < r; });
+			break;
+			
+		case SortMode::modified:
+			std::sort(files.begin(), files.end(), [](auto &l, auto &r) { return fs::last_write_time(l) < fs::last_write_time(r); });
+			break;
+			
+		case SortMode::type:
+			std::sort(files.begin(), files.end(), [](auto &l, auto &r) { 
+				return (l.extension() < r.extension()) || (l.extension() == r.extension() && l.filename() < r.filename()); 
+			});
+			break;
+	}
+
+	// TODO This can be improved: as it is animations restart on every [sortby]
+	current(std::distance(files.begin(), std::find(files.begin(), files.end(), _file)));
+}
+
 void PicoView::firs() {
 	current(0);
 }
@@ -200,83 +303,15 @@ void PicoView::last() {
 	current(files.size() - 1);
 }
 
-void PicoView::current(const int &i) {
-	// TODO Frame count checking: .gif files with only 1 frame should not be displayed as a QMovie
-	cidx = i;
-	if (i >= 0 && (unsigned int)i < files.size()) {
-		if (mov != NULL) {
-			delete mov;
-			mov = NULL;
-		}
-		if (isMovie(files[i])) {
-			mov = new QMovie(QString::fromStdString(files[i].string()));
-
-			// Have to start the movie before calling [->frameRect()]
-			img_container->setMovie(mov);
-			mov->jumpToNextFrame();
-			img_size = mov->frameRect();
-
-			// Attempt to down scale the movie to fit container (if necessary), without compromising the native aspect
-			double aspect = (double)img_size.width() / (double)img_size.height();
-			if (img_size.width() > container_size.width()) mov->setScaledSize(QSize(container_size.width(), container_size.width() / aspect));
-			if (img_size.height() > container_size.height()) mov->setScaledSize(QSize(container_size.height() * aspect, container_size.height()));
-			mov->start();
-		}
-		else {
-			img.load(QString::fromStdString(files[i].string()));
-			QPixmap p = QPixmap::fromImage(img);
-			img_size = p.rect();
-
-			// If the image's native resolution exceeds the container size, attempt to scale down accordingly
-			if (img_size.height() > container_size.height() || img_size.width() > container_size.width()) {
-				p = p.scaled(container_size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-			}
-
-			img_container->setPixmap(p);
-		}
-
-		dimensions->setText(QString::fromStdString(std::to_string(img_size.width())+"x"+std::to_string(img_size.height())));
-		info->setText(QString::fromStdString(files[i].filename().string()));
-	}
-
-	_prev = controls.find("Previous")->second;
-	_delt = controls.find("Delete")->second;
-	_next = controls.find("Next")->second;
-
-	// Disable next and previous buttons when appropriate
-	bool empty = files.empty();
-	if (i == 0 || empty) {
-		_prev->setEnabled(false);
-		controls.find("<<")->second->setEnabled(false);
-	}
-	if ((unsigned int)i == files.size() - 1 || empty) {
-		_next->setEnabled(false);
-		controls.find(">>")->second->setEnabled(false);
-	}
-	if (empty && _delt->isEnabled()) _delt->setEnabled(false);
-	else _delt->setEnabled(true);
-
-	// Re-enable next and previous buttons as needed
-	if (!_prev->isEnabled() && i != 0 && !empty) {
-		_prev->setEnabled(true);
-		controls.find("<<")->second->setEnabled(true);
-	}
-	if (!_next->isEnabled() && (unsigned int)i != files.size() - 1 && !empty) {
-		_next->setEnabled(true);
-		controls.find(">>")->second->setEnabled(true);
-	}
-}
-
-void PicoView::sortby(SortMode m) {
-	switch(m) {
-		case SortMode::modified:
-			std::sort(files.begin(), files.end(), [](auto &l, auto &r) { return fs::last_write_time(l) < fs::last_write_time(r); });
-		break;
-	}
-}
+// General
 bool PicoView::isMovie(fs::path f) {
 	QMovie m(QString::fromStdString(f.string()));
 	return m.frameCount() > 1;
+}
+
+void PicoWidget::resizeEvent(QResizeEvent* e) {	
+	QWidget::resizeEvent(e);
+	window->resizeEvent(e);
 }
 
 std::string tolower(const std::string &s) {
@@ -284,4 +319,3 @@ std::string tolower(const std::string &s) {
 	std::transform(ls.begin(), ls.end(), ls.begin(), [](unsigned char c) { return std::tolower(c); }); 
 	return ls;
 }
-
