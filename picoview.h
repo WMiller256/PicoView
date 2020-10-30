@@ -40,7 +40,7 @@
 
 namespace fs = std::experimental::filesystem;
 
-const std::vector<std::string> supported = {".gif", ".tif", ".jpg", ".png", ".jpeg"};
+const std::vector<std::string> supported = {".gif", ".tif", ".jpg", ".png", ".jpeg", ".webp"};
 
 enum SortMode { name, modified, type };
 
@@ -75,6 +75,7 @@ public slots:
 
 	void sortby(QString s);
 	void refresh();
+	void fullscreen();
 
 	void firs();
 	void prev();
@@ -98,7 +99,10 @@ private:
 	QHBoxLayout* tbar_layout;
 	QMenuBar* menu;
 
+    bool is_fullscreen = false;
+
 	QPushButton* _refr;
+	QPushButton* _fullscreen;
 	QLabel* img_label;
 	QMovie* mov;
 	QImage img;

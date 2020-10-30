@@ -42,7 +42,8 @@ void PicoView::resizeEvent(QResizeEvent* e) {
 	QMainWindow::resizeEvent(e);
 	w->setMaximumSize(this->size());
 	label_size = img_label->size();
-	if (!files.empty()) setLabelText(info, QString::fromStdString(files[cidx].filename().string()));
+	current(cidx);
+//	if (!files.empty()) setLabelText(info, QString::fromStdString(files[cidx].filename().string()));
 }
 
 void PicoView::open(const fs::path &p) {
@@ -154,9 +155,17 @@ void PicoView::buildControls() {
 	// Add the information labels
 	dimensions->setMaximumWidth(200);
 	info->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-	_info->addWidget(info);
 	_info->addWidget(dimensions);
+	_info->addWidget(info);
 
+
+	// Create and connect fullscreen button with F11 shortcut (broken)
+/*	_fullscreen = new QPushButton("FS", w);
+	QShortcut* _fullscreen_shortcut = new QShortcut(QKeySequence(tr("F11")), this);
+	QObject::connect(_fullscreen, &QPushButton::clicked, this, &PicoView::fullscreen);
+	QObject::connect(_fullscreen_shortcut, &QShortcut::activated, this, &PicoView::fullscreen);
+	_info->addWidget(_fullscreen);
+*/
 	// Add the info and controls to controls_layout
 	controls_layout = new QVBoxLayout();
 	controls_layout->addLayout(_info);
@@ -304,6 +313,10 @@ void PicoView::refresh() {
 	img_label->hide();
 	open_dir(path, cidx, false);
 	img_label->show();
+}
+void PicoView::fullscreen() {
+// Broken
+    isFullScreen() ? showNormal() : showFullScreen();
 }
 
 void PicoView::firs() {
