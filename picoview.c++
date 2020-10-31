@@ -52,7 +52,7 @@ void PicoView::open(const fs::path &p) {
 	else open_file(path, false);
 }
 
-void PicoView::getFileList() {
+void PicoView::getFileList(bool sort) {
 	std::string ext;
 	fs::path p;
 	files = {};
@@ -64,7 +64,7 @@ void PicoView::getFileList() {
 			files.push_back(p);
 		}
 	}
-	sortby(sorting);
+	if (sort) sortby(sorting);
 }
 
 void PicoView::buildLayout() { 
@@ -292,6 +292,18 @@ void PicoView::sortby(QString s) {
 	if (cidx < 0) return;
 	SortMode m = _sort_options.find(s.toStdString())->second;
 	fs::path _file = files[cidx];
+
+	// Update file list in case of deletion/addition from external source
+	getFileList(false);
+
+	// Reselect the file if it still exists, else go to nearest previous index
+	std::vector<fs::path>::iterator pos = std::find(files.begin(), files.end(), _file);
+	if (pos == files.end()) {
+	    cidx = pos - files.begin();
+	    if ((unsigned)cidx > files.size() - 1) cidx = files.size() - 1;
+	    fs::path _file = files[cidx];
+	}
+	
 	sorting = s;
 	switch(m) {
 		case SortMode::name:

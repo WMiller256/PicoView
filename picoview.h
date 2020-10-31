@@ -57,7 +57,7 @@ public:
 
 	void open(const fs::path &p);
 
-	void getFileList();
+	void getFileList(bool sort = true);
 	void buildLayout();
 	void buildMenu();
 	void buildControls();
