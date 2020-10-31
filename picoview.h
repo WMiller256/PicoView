@@ -40,7 +40,7 @@
 
 namespace fs = std::experimental::filesystem;
 
-const std::vector<std::string> supported = {".gif", ".tif", ".jpg", ".png", ".jpeg", ".webp"};
+const std::vector<std::string> supported = {".gif", ".tif", ".tiff", ".jpg", ".png", ".jpeg", ".webp"};
 
 enum SortMode { name, modified, type };
 
@@ -77,6 +77,8 @@ public slots:
 	void refresh();
 	void fullscreen();
 
+	void movieLooper(int f);    // Native looping of WebP animations ocassionally fails with Qt 5.9.5, have to handle manually.
+
 	void firs();
 	void prev();
 	void delt();
@@ -108,6 +110,7 @@ private:
 	QImage img;
 	QRect img_size;
 	QSize label_size;
+	int nframes;
 
 	QLabel* info;
 	QLabel* dimensions;	

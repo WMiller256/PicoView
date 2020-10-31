@@ -26,7 +26,7 @@ PicoView::PicoView(QPalette _palette, QWidget* parent) : QMainWindow(parent), pa
 	img_label->setMinimumSize(label_size);
 	
 	mov = new QMovie;
-
+    
 	// Create image title and dimensions labels	
 	info = new QLabel;
 	info->setMinimumSize(QSize(0, info->minimumSizeHint().height()));
@@ -186,6 +186,9 @@ void PicoView::current(const int &i) {
 		if (isMovie(files[i])) {
 			mov = new QMovie(QString::fromStdString(files[i].string()));
 
+            nframes = mov->frameCount();
+            connect(mov, SIGNAL(frameChanged(int)), this, SLOT(movieLooper(int)));
+
 			// Have to start the movie before calling [->frameRect()]
 			img_label->setMovie(mov);
 			mov->jumpToNextFrame();
@@ -317,6 +320,12 @@ void PicoView::refresh() {
 void PicoView::fullscreen() {
 // Broken
     isFullScreen() ? showNormal() : showFullScreen();
+}
+
+void PicoView::movieLooper(int f) {
+    if (f == nframes - 1) {
+        mov->jumpToFrame(0);
+    }
 }
 
 void PicoView::firs() {
