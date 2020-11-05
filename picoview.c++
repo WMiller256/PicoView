@@ -43,7 +43,6 @@ void PicoView::resizeEvent(QResizeEvent* e) {
 	w->setMaximumSize(this->size());
 	label_size = img_label->size();
 	current(cidx);
-//	if (!files.empty()) setLabelText(info, QString::fromStdString(files[cidx].filename().string()));
 }
 
 void PicoView::open(const fs::path &p) {
@@ -196,8 +195,12 @@ void PicoView::current(const int &i) {
 
 			// Attempt to down scale the movie to fit container (if necessary), without compromising the native aspect
 			double aspect = (double)img_size.width() / (double)img_size.height();
-			if (img_size.width() > label_size.width()) mov->setScaledSize(QSize(label_size.width(), label_size.width() / aspect));
-			if (img_size.height() > label_size.height()) mov->setScaledSize(QSize(label_size.height() * aspect, label_size.height()));
+			QSize scaled = img_size.size();
+			if (img_size.width() > label_size.width()) scaled = QSize(label_size.width(), label_size.width() / aspect);
+			if (scaled.height() > label_size.height()) scaled = QSize(label_size.height() * aspect, label_size.height());
+
+            // Apply scaling and start the movie
+		    mov->setScaledSize(scaled);
 			mov->start();
 		}
 		else {
