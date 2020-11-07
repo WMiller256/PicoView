@@ -19,8 +19,10 @@
 #include <vector>
 
 // Qt
+#include <QApplication>
 #include <QColor>
 #include <QComboBox>
+#include <QDesktopWidget>
 #include <QDir>
 #include <QDebug>
 #include <QFileDialog>
@@ -101,6 +103,7 @@ private:
 	QHBoxLayout* tbar_layout;
 	QMenuBar* menu;
 
+    QRect norm_geometry;
     bool is_fullscreen = false;
 
 	QPushButton* _refr;

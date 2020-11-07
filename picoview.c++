@@ -17,7 +17,6 @@ PicoView::PicoView(QPalette _palette, QWidget* parent) : QMainWindow(parent), pa
     QList<QByteArray> fmts = QImageReader::supportedImageFormats();
     fmts += QMovie::supportedFormats();
     for (int ii = 0; ii < fmts.length(); ii ++) supported.push_back("."+fmts[ii].toStdString());
-    for (auto const &s : supported) std::cout << s << std::endl;
 
 	for (const auto &s : supported) {
 		if (s != supported.back()) filter += "*"+s+" ";
@@ -44,6 +43,8 @@ PicoView::PicoView(QPalette _palette, QWidget* parent) : QMainWindow(parent), pa
 
 	buildLayout();
 	current(-1);
+
+	norm_geometry = frameGeometry();
 }
 
 void PicoView::resizeEvent(QResizeEvent* e) {
@@ -51,6 +52,10 @@ void PicoView::resizeEvent(QResizeEvent* e) {
 	w->setMaximumSize(this->size());
 	label_size = img_label->size();
 	current(cidx);
+
+    if (frameGeometry().topLeft() != QPoint(0, 0)) {
+        norm_geometry = frameGeometry();
+    }
 }
 
 void PicoView::open(const fs::path &p) {
@@ -167,12 +172,13 @@ void PicoView::buildControls() {
 
 
 	// Create and connect fullscreen button with F11 shortcut (broken)
-/*	_fullscreen = new QPushButton("FS", w);
+	_fullscreen = new QPushButton("FS", w);
+	_fullscreen->setFixedSize(QSize(25, 25));
 	QShortcut* _fullscreen_shortcut = new QShortcut(QKeySequence(tr("F11")), this);
 	QObject::connect(_fullscreen, &QPushButton::clicked, this, &PicoView::fullscreen);
 	QObject::connect(_fullscreen_shortcut, &QShortcut::activated, this, &PicoView::fullscreen);
 	_info->addWidget(_fullscreen);
-*/
+
 	// Add the info and controls to controls_layout
 	controls_layout = new QVBoxLayout();
 	controls_layout->addLayout(_info);
@@ -341,8 +347,28 @@ void PicoView::refresh() {
 	img_label->show();
 }
 void PicoView::fullscreen() {
-// Broken
-    isFullScreen() ? showNormal() : showFullScreen();
+    QRect g = frameGeometry();
+    if (is_fullscreen) {
+        showNormal();
+        is_fullscreen = isFullScreen();
+
+        // For X11 window managers, have to manually reset geometry
+        if (frameGeometry() == g) {
+            setGeometry(norm_geometry);
+            is_fullscreen = false;
+        }
+    }
+    else {
+        showFullScreen();
+        is_fullscreen = isFullScreen();
+
+        // If showFullScreen() didn't work, try to fake it -- often necessary with X11 window managers
+        if (frameGeometry() == g) {
+            setGeometry(QApplication::desktop()->availableGeometry());
+            move(0, 0);
+            is_fullscreen = true;
+        }
+    }
 }
 
 void PicoView::movieLooper(int f) {

@@ -8,6 +8,7 @@
  */
 
 #include <QApplication>
+#include <QTimer>
 
 #include "picoview.h"
 
@@ -46,9 +47,9 @@ int main(int argn, char** argv) {
 
 	w.setWindowTitle("PicoView");
 	w.show();
-	w.setWindowState(Qt::WindowMinimized);
 
 	// Force expansion of {img_container}
 	w.resize(w.size() + QSize(1, 1));
+
 	return a.exec();
 }
