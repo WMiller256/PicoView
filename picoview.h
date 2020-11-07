@@ -40,7 +40,7 @@
 
 namespace fs = std::experimental::filesystem;
 
-const std::vector<std::string> supported = {".gif", ".tif", ".tiff", ".jpg", ".png", ".jpeg", ".webp"};
+extern std::vector<std::string> supported;
 
 enum SortMode { name, modified, type };
 

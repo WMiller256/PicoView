@@ -10,7 +10,15 @@
 
 #include "picoview.h"
 
+std::vector<std::string> supported;
+
 PicoView::PicoView(QPalette _palette, QWidget* parent) : QMainWindow(parent), palette(_palette) {
+    // Get supported formats
+    QList<QByteArray> fmts = QImageReader::supportedImageFormats();
+    fmts += QMovie::supportedFormats();
+    for (int ii = 0; ii < fmts.length(); ii ++) supported.push_back("."+fmts[ii].toStdString());
+    for (auto const &s : supported) std::cout << s << std::endl;
+
 	for (const auto &s : supported) {
 		if (s != supported.back()) filter += "*"+s+" ";
 		else filter += 	"*"+s+")";	
