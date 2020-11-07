@@ -60,7 +60,7 @@ void PicoView::resizeEvent(QResizeEvent* e) {
 
 void PicoView::open(const fs::path &p) {
 	path = fs::canonical(p);
-	if (fs::is_directory(path)) open_dir(path, false);
+	if (fs::is_directory(path)) open_dir(path, 0, false);
 	else open_file(path, false);
 }
 
