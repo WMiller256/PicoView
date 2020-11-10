@@ -300,9 +300,11 @@ void PicoView::open_dir(fs::path _dir, size_t idx, bool checking) {
 	if (checking) {
 		if (_dir == path) return;
 	}
-	path = fs::canonical(_dir);
-	getFileList();
-	current(idx);
+
+    path = fs::canonical(_dir);
+	try getFileList();
+    catch (...) error("failed to open "+yellow+path.string()+res, __LINE__ - 1, __FILE__);
+    current(idx);
 }
 
 void PicoView::sortby(QString s) {
@@ -421,4 +423,8 @@ void setLabelText(QLabel* label, QString text) {
 	QFontMetrics metric(label->font());
 	QString clipped = metric.elidedText(text, Qt::ElideRight, label->width());
 	label->setText(clipped);
+}
+void error(const std::string mess, const int line, const char* file) {
+    std::cout << std::flush;
+    printf(std::string("\r"+red+white_back+" Error :"+res+" \"%s\""+" in File "+yellow+"%s"+res+" on line "+bright+red+"%d"+res+"\n").c_str(), mess, file, line));
 }

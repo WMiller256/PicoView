@@ -158,3 +158,5 @@ std::string tolower(const std::string &s);
 
 // Automatically elide label text
 void setLabelText(QLabel* label, QString text);
+
+void error(const std::string mess, const int line, const char* file);
