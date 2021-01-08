@@ -1,11 +1,9 @@
 TEMPLATE = app
 TARGET = ~/bin/picoview
 
-QT = core gui widgets
+QT = core gui widgets multimediawidgets multimedia
 CONFIG += debug
 LIBS += -lstdc++fs
-
-greaterThan(QT_MAJOR_VERSION, 5): QT += widgets
 
 SOURCES += main.c++ picoview.c++
 HEADERS += picoview.h

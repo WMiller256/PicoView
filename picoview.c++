@@ -196,6 +196,10 @@ void PicoView::current(const int &i) {
 			delete mov;
 			mov = NULL;
 		}
+		if (vid != NULL) {
+            delete vid;
+            vid = NULL;
+		}
 		if (isMovie(files[i])) {
 			mov = new QMovie(QString::fromStdString(files[i].string()));
 
@@ -302,8 +306,13 @@ void PicoView::open_dir(fs::path _dir, size_t idx, bool checking) {
 	}
 
     path = fs::canonical(_dir);
-	try getFileList();
-    catch (...) error("failed to open "+yellow+path.string()+res, __LINE__ - 1, __FILE__);
+	try {
+	    getFileList();
+	}
+    catch (...) {
+        error("failed to open "+colors::yellow+path.string()+colors::res, __LINE__ - 3, __FILE__);
+        return;
+    }
     current(idx);
 }
 
@@ -426,5 +435,6 @@ void setLabelText(QLabel* label, QString text) {
 }
 void error(const std::string mess, const int line, const char* file) {
     std::cout << std::flush;
-    printf(std::string("\r"+red+white_back+" Error :"+res+" \"%s\""+" in File "+yellow+"%s"+res+" on line "+bright+red+"%d"+res+"\n").c_str(), mess, file, line));
+    printf(std::string("\r"+colors::red+colors::white_back+" Error :"+colors::res+" \"%s\""+" in File "+colors::yellow+"%s"+colors::res+
+           " on line "+colors::bright+colors::red+"%d"+colors::res+"\n").c_str(), mess, file, line);
 }

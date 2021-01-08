@@ -28,6 +28,7 @@
 #include <QFileDialog>
 #include <QLabel>
 #include <QtWidgets/QMainWindow>
+#include <QMediaPlayer>
 #include <QMovie>
 #include <QMenu>
 #include <QMenuBar>
@@ -39,6 +40,9 @@
 #include <QSizePolicy>
 #include <QWidget>
 #include <QVBoxLayout>
+#include <QVideoWidget>
+
+#include "colors.h"
 
 namespace fs = std::experimental::filesystem;
 
@@ -111,6 +115,8 @@ private:
 	QLabel* img_label;
 	QMovie* mov;
 	QImage img;
+	QVideoWidget* vid;
+	QMediaPlayer* player;
 	QRect img_size;
 	QSize label_size;
 	int nframes;
