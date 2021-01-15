@@ -16,10 +16,15 @@ PicoView::PicoView(QPalette _palette, QWidget* parent) : QMainWindow(parent), pa
     // Get supported formats
     QList<QByteArray> fmts = QImageReader::supportedImageFormats();
     fmts += QMovie::supportedFormats();
-    for (int ii = 0; ii < fmts.length(); ii ++) supported.push_back("."+fmts[ii].toStdString());
+    for (int ii = 0; ii < QMovie::supportedFormats().length(); ii ++) {
+        std::cout << QMovie::supportedFormats()[ii].toStdString() << std::endl;
+    }
+    for (int ii = 0; ii < fmts.length(); ii ++) {
+        if (!contains<std::string>(supported, fmts[ii].toStdString())) supported.push_back("."+fmts[ii].toStdString());
+    }
 
 	for (const auto &s : supported) {
-		if (s != supported.back()) filter += "*"+s+" ";
+		if (&s != &supported.back()) filter += "*"+s+" ";
 		else filter += 	"*"+s+")";	
 	}
 
@@ -196,10 +201,10 @@ void PicoView::current(const int &i) {
 			delete mov;
 			mov = NULL;
 		}
-		if (vid != NULL) {
+/*		if (vid != NULL) {
             delete vid;
             vid = NULL;
-		}
+		} */
 		if (isMovie(files[i])) {
 			mov = new QMovie(QString::fromStdString(files[i].string()));
 
