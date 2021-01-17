@@ -43,7 +43,8 @@ int main(int argn, char** argv) {
 	if (argn > 1) {
 		path = fs::path(argv[1]);
 	}
-	w.open(path);
+	if (fs::exists(path)) w.open(path);
+	else w.open(fs::path("."));
 
 	w.setWindowTitle("PicoView");
 	w.show();

@@ -16,9 +16,6 @@ PicoView::PicoView(QPalette _palette, QWidget* parent) : QMainWindow(parent), pa
     // Get supported formats
     QList<QByteArray> fmts = QImageReader::supportedImageFormats();
     fmts += QMovie::supportedFormats();
-    for (int ii = 0; ii < QMovie::supportedFormats().length(); ii ++) {
-        std::cout << QMovie::supportedFormats()[ii].toStdString() << std::endl;
-    }
     for (int ii = 0; ii < fmts.length(); ii ++) {
         if (!contains<std::string>(supported, fmts[ii].toStdString())) supported.push_back("."+fmts[ii].toStdString());
     }
