@@ -43,7 +43,6 @@ PicoView::PicoView(QPalette _palette, QWidget* parent) : QMainWindow(parent), pa
     playlist->setPlaybackMode(QMediaPlaylist::CurrentItemInLoop);
 	player->setVideoOutput(vid);
     player->setPlaylist(playlist);
-    player->setMuted(true);
     player->setNotifyInterval(10);
 	vid->setMinimumSize(label_size);
 	vid->hide();
@@ -227,12 +226,12 @@ void PicoView::current(const int &i) {
 			// Have to start the movie before calling [->frameRect()]
 			img_label->setMovie(mov);
 			mov->jumpToNextFrame();
-			img_size = mov->frameRect();
+			img_rect = mov->frameRect();
 
 			// Attempt to down scale the movie to fit container (if necessary), without compromising the native aspect
-			double aspect = (double)img_size.width() / (double)img_size.height();
-			QSize scaled = img_size.size();
-			if (img_size.width() > label_size.width()) scaled = QSize(label_size.width(), label_size.width() / aspect);
+			double aspect = (double)img_rect.width() / (double)img_rect.height();
+			QSize scaled = img_rect.size();
+			if (img_rect.width() > label_size.width()) scaled = QSize(label_size.width(), label_size.width() / aspect);
 			if (scaled.height() > label_size.height()) scaled = QSize(label_size.height() * aspect, label_size.height());
 
             // Apply scaling and start the movie
@@ -244,23 +243,25 @@ void PicoView::current(const int &i) {
             playlist->clear();
             playlist->addMedia(QUrl::fromLocalFile(QString::fromStdString(files[i].string())));
             playlist->setCurrentIndex(1);
+            img_rect.setSize(extractResolution(files[i].string()));
+            vid->setMaximumSize(img_rect.size());
             vid->show();
             player->play();
 		}
 		else {
 			img.load(QString::fromStdString(files[i].string()));
 			QPixmap p = QPixmap::fromImage(img);
-			img_size = p.rect();
+			img_rect = p.rect();
 
 			// If the image's native resolution exceeds the container size, attempt to scale down accordingly
-			if (img_size.height() > label_size.height() || img_size.width() > label_size.width()) {
+			if (img_rect.height() > label_size.height() || img_rect.width() > label_size.width()) {
 				p = p.scaled(label_size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 			}
 
 			img_label->setPixmap(p);
 		}
 
-		dimensions->setText(QString::fromStdString(std::to_string(img_size.width())+"x"+std::to_string(img_size.height())));
+		dimensions->setText(QString::fromStdString(std::to_string(img_rect.width())+"x"+std::to_string(img_rect.height())));
 		setLabelText(info, QString::fromStdString(files[i].filename().string()));
 	}
 
@@ -454,6 +455,10 @@ bool PicoView::isVideo(fs::path f) {
     return f.extension() == ".mp4";
 }
 
+QSize PicoView::extractResolution(std::string f) {
+    return split(exec("ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=,:p=0 "+f), ',');
+}
+
 void PicoWidget::resizeEvent(QResizeEvent* e) {	
 	QWidget::resizeEvent(e);
 	window->resizeEvent(e);
@@ -473,4 +478,28 @@ void error(const std::string mess, const int line, const char* file) {
     std::cout << std::flush;
     printf(std::string("\r"+colors::red+colors::white_back+" Error :"+colors::res+" \"%s\""+" in File "+colors::yellow+"%s"+colors::res+
            " on line "+colors::bright+colors::red+"%d"+colors::res+"\n").c_str(), mess, file, line);
+}
+
+template <typename T>
+void split(const std::string &s, char delim, T result) {
+    std::istringstream iss(s);
+    std::string item;
+    while (std::getline(iss, item, delim)) {
+        *result++ = item;
+    }
+}
+QSize split(const std::string &s, char delim) {
+    std::vector<std::string> v;
+    split(s, delim, std::back_inserter(v));
+    return QSize(std::stoi(v[0]), std::stoi(v[1]));
+}
+
+std::string exec(std::string command) {
+    std::array<char, 128> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"), pclose);
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    return result;
 }

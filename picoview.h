@@ -73,6 +73,8 @@ public:
 
 	bool isMovie(fs::path f);
     bool isVideo(fs::path f);
+
+    QSize extractResolution(std::string);
     
 	void open_file(fs::path _file, bool checking = true);
 	void open_dir(fs::path _dir, size_t idx = 0, bool checking = true);
@@ -85,9 +87,9 @@ public slots:
 	void refresh();
 	void fullscreen();
 
-	void movieLooper(int f);      // Native looping of WebP animations ocassionally fails with Qt 5.9.5, have to handle manually.
-	void videoLooper(qint64 p);   // For looping mp4 videos
-
+	void movieLooper(int f);            // Native looping of WebP animations ocassionally fails with Qt 5.9.5, have to handle manually.
+	void videoLooper(qint64 p);         // For looping mp4 videos
+    
 	void firs();
 	void prev();
 	void delt();
@@ -119,10 +121,11 @@ private:
 	
 	QMovie* mov;
 	QImage img;
+	QWidget* vid_container;
 	QVideoWidget* vid;
 	QMediaPlayer* player;
 	QMediaPlaylist* playlist = NULL;
-	QRect img_size;
+	QRect img_rect;
 	QSize label_size;
 	int nframes;
 
@@ -171,3 +174,9 @@ std::string tolower(const std::string &s);
 void setLabelText(QLabel* label, QString text);
 
 void error(const std::string mess, const int line, const char* file);
+
+template <typename T>
+void split(const std::string &s, char delim, T result);
+QSize split(const std::string &s, char delim);
+
+std::string exec(std::string command);
