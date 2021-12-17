@@ -29,6 +29,7 @@
 #include <QLabel>
 #include <QtWidgets/QMainWindow>
 #include <QMediaPlayer>
+#include <QMediaPlaylist>
 #include <QMovie>
 #include <QMenu>
 #include <QMenuBar>
@@ -71,7 +72,8 @@ public:
 	void current(const int &i);
 
 	bool isMovie(fs::path f);
-
+    bool isVideo(fs::path f);
+    
 	void open_file(fs::path _file, bool checking = true);
 	void open_dir(fs::path _dir, size_t idx = 0, bool checking = true);
 
@@ -83,7 +85,8 @@ public slots:
 	void refresh();
 	void fullscreen();
 
-	void movieLooper(int f);    // Native looping of WebP animations ocassionally fails with Qt 5.9.5, have to handle manually.
+	void movieLooper(int f);      // Native looping of WebP animations ocassionally fails with Qt 5.9.5, have to handle manually.
+	void videoLooper(qint64 p);   // For looping mp4 videos
 
 	void firs();
 	void prev();
@@ -113,10 +116,12 @@ private:
 	QPushButton* _refr;
 	QPushButton* _fullscreen;
 	QLabel* img_label;
+	
 	QMovie* mov;
 	QImage img;
 	QVideoWidget* vid;
 	QMediaPlayer* player;
+	QMediaPlaylist* playlist = NULL;
 	QRect img_size;
 	QSize label_size;
 	int nframes;

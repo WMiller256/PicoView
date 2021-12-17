@@ -19,6 +19,7 @@ PicoView::PicoView(QPalette _palette, QWidget* parent) : QMainWindow(parent), pa
     for (int ii = 0; ii < fmts.length(); ii ++) {
         if (!contains<std::string>(supported, fmts[ii].toStdString())) supported.push_back("."+fmts[ii].toStdString());
     }
+    supported.push_back(".mp4");
 
 	for (const auto &s : supported) {
 		if (&s != &supported.back()) filter += "*"+s+" ";
@@ -35,6 +36,19 @@ PicoView::PicoView(QPalette _palette, QWidget* parent) : QMainWindow(parent), pa
 	img_label->setMinimumSize(label_size);
 	
 	mov = new QMovie;
+	player = new QMediaPlayer;
+	playlist = new QMediaPlaylist(player);
+	vid = new QVideoWidget;
+
+    playlist->setPlaybackMode(QMediaPlaylist::CurrentItemInLoop);
+	player->setVideoOutput(vid);
+    player->setPlaylist(playlist);
+    player->setMuted(true);
+    player->setNotifyInterval(10);
+	vid->setMinimumSize(label_size);
+	vid->hide();
+
+    connect(player, SIGNAL(positionChanged(qint64)), this, SLOT(videoLooper(qint64)));
     
 	// Create image title and dimensions labels	
 	info = new QLabel;
@@ -106,6 +120,7 @@ void PicoView::buildLayout() {
 	img_label->show();
 	img_canvas->addLayout(tbar_layout);
 	img_canvas->addWidget(img_label, Qt::AlignCenter);
+	img_canvas->addWidget(vid, Qt::AlignCenter);
 	img_canvas->addLayout(controls_layout);
 
 	layout->addLayout(img_canvas);
@@ -198,10 +213,11 @@ void PicoView::current(const int &i) {
 			delete mov;
 			mov = NULL;
 		}
-/*		if (vid != NULL) {
-            delete vid;
-            vid = NULL;
-		} */
+		if (vid->isVisible() && !isVideo(files[i])) {
+		    player->stop();
+            vid->hide();
+            img_label->show();
+		}
 		if (isMovie(files[i])) {
 			mov = new QMovie(QString::fromStdString(files[i].string()));
 
@@ -222,6 +238,14 @@ void PicoView::current(const int &i) {
             // Apply scaling and start the movie
 		    mov->setScaledSize(scaled);
 			mov->start();
+		}
+		else if (isVideo(files[i])) {
+		    img_label->hide();
+            playlist->clear();
+            playlist->addMedia(QUrl::fromLocalFile(QString::fromStdString(files[i].string())));
+            playlist->setCurrentIndex(1);
+            vid->show();
+            player->play();
 		}
 		else {
 			img.load(QString::fromStdString(files[i].string()));
@@ -390,6 +414,13 @@ void PicoView::movieLooper(int f) {
     }
 }
 
+void PicoView::videoLooper(qint64 p) {
+    if (player->duration() && p >= player->duration() - 15) {
+        player->setPosition(0);
+        player->play();
+    }
+}
+
 void PicoView::firs() {
 	current(0);
 }
@@ -418,6 +449,9 @@ void PicoView::last() {
 bool PicoView::isMovie(fs::path f) {
 	QMovie m(QString::fromStdString(f.string()));
 	return m.frameCount() > 1;
+}
+bool PicoView::isVideo(fs::path f) {
+    return f.extension() == ".mp4";
 }
 
 void PicoWidget::resizeEvent(QResizeEvent* e) {	
