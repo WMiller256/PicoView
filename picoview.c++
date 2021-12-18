@@ -26,26 +26,34 @@ PicoView::PicoView(QPalette _palette, QWidget* parent) : QMainWindow(parent), pa
 		else filter += 	"*"+s+")";	
 	}
 
+	label_size = QSize(600, 800);
+
 	w = new PicoWidget(this, this);
 	w->setPalette(palette);
 	this->setCentralWidget(w);
 	
-	img_label = new QLabel;
-	img_label->setAlignment(Qt::AlignCenter);
-	label_size = QSize(300, 200);
-	img_label->setMinimumSize(label_size);
+	img_container = new QLabel;
+	img_container->setAlignment(Qt::AlignCenter);
+	img_container->setMinimumSize(label_size);
 	
 	mov = new QMovie;
-	player = new QMediaPlayer;
-	playlist = new QMediaPlaylist(player);
-	vid = new QVideoWidget;
 
-    playlist->setPlaybackMode(QMediaPlaylist::CurrentItemInLoop);
+	vid_container = new QWidget(w);
+	vid_container->setStyleSheet("background: gray");
+	vid_container->hide();
+
+	vid = new QVideoWidget(vid_container);
+
+    QVBoxLayout* vid_vert = new QVBoxLayout(vid_container);
+    QHBoxLayout* vid_horz = new QHBoxLayout;
+    
+    vid_horz->addWidget(vid, 0, Qt::AlignCenter);
+    vid_vert->addLayout(vid_horz);
+    vid_vert->setAlignment(Qt::AlignCenter);
+    
+	player = new QMediaPlayer;
 	player->setVideoOutput(vid);
-    player->setPlaylist(playlist);
     player->setNotifyInterval(10);
-	vid->setMinimumSize(label_size);
-	vid->hide();
 
     connect(player, SIGNAL(positionChanged(qint64)), this, SLOT(videoLooper(qint64)));
     
@@ -53,6 +61,7 @@ PicoView::PicoView(QPalette _palette, QWidget* parent) : QMainWindow(parent), pa
 	info = new QLabel;
 	info->setMinimumSize(QSize(0, info->minimumSizeHint().height()));
 	info->setAlignment(Qt::AlignCenter);
+	
 	dimensions = new QLabel;
 	dimensions->setAlignment(Qt::AlignCenter);
 
@@ -65,7 +74,8 @@ PicoView::PicoView(QPalette _palette, QWidget* parent) : QMainWindow(parent), pa
 void PicoView::resizeEvent(QResizeEvent* e) {
 	QMainWindow::resizeEvent(e);
 	w->setMaximumSize(this->size());
-	label_size = img_label->size();
+	if (img_container->isVisible()) label_size = img_container->size();
+	else label_size = vid_container->size();
 	current(cidx);
 
     if (frameGeometry().topLeft() != QPoint(0, 0)) {
@@ -96,8 +106,9 @@ void PicoView::getFileList(bool sort) {
 
 void PicoView::buildLayout() { 
 	layout = new QHBoxLayout;
-	img_canvas = new QVBoxLayout;
+	canvas = new QVBoxLayout;
 	tbar_layout = new QHBoxLayout;
+	media = new QHBoxLayout;
 	menu = new QMenuBar;
 
 	buildMenu();
@@ -116,13 +127,14 @@ void PicoView::buildLayout() {
 	tbar_layout->addWidget(menu);
 	tbar_layout->addWidget(_refr);
 	
-	img_label->show();
-	img_canvas->addLayout(tbar_layout);
-	img_canvas->addWidget(img_label, Qt::AlignCenter);
-	img_canvas->addWidget(vid, Qt::AlignCenter);
-	img_canvas->addLayout(controls_layout);
+    media->addWidget(img_container, Qt::AlignCenter);
+    media->addWidget(vid_container, Qt::AlignCenter);
+	img_container->show();
+	canvas->addLayout(tbar_layout);
+	canvas->addLayout(media);
+	canvas->addLayout(controls_layout);
 
-	layout->addLayout(img_canvas);
+	layout->addLayout(canvas);
 	w->setLayout(layout);
 }
 void PicoView::buildMenu() {
@@ -212,10 +224,10 @@ void PicoView::current(const int &i) {
 			delete mov;
 			mov = NULL;
 		}
-		if (vid->isVisible() && !isVideo(files[i])) {
+		if (vid_container->isVisible() && !isVideo(files[i])) {
 		    player->stop();
-            vid->hide();
-            img_label->show();
+            vid_container->hide();
+            img_container->show();
 		}
 		if (isMovie(files[i])) {
 			mov = new QMovie(QString::fromStdString(files[i].string()));
@@ -224,27 +236,22 @@ void PicoView::current(const int &i) {
             connect(mov, SIGNAL(frameChanged(int)), this, SLOT(movieLooper(int)));
 
 			// Have to start the movie before calling [->frameRect()]
-			img_label->setMovie(mov);
+			img_container->setMovie(mov);
 			mov->jumpToNextFrame();
 			img_rect = mov->frameRect();
 
-			// Attempt to down scale the movie to fit container (if necessary), without compromising the native aspect
-			double aspect = (double)img_rect.width() / (double)img_rect.height();
-			QSize scaled = img_rect.size();
-			if (img_rect.width() > label_size.width()) scaled = QSize(label_size.width(), label_size.width() / aspect);
-			if (scaled.height() > label_size.height()) scaled = QSize(label_size.height() * aspect, label_size.height());
-
             // Apply scaling and start the movie
-		    mov->setScaledSize(scaled);
+		    mov->setScaledSize(calculateScale());
 			mov->start();
 		}
 		else if (isVideo(files[i])) {
-		    img_label->hide();
-            playlist->clear();
-            playlist->addMedia(QUrl::fromLocalFile(QString::fromStdString(files[i].string())));
-            playlist->setCurrentIndex(1);
+		    player->setMedia(QUrl::fromLocalFile(QString::fromStdString(files[i].string())));
+		    img_container->hide();
+		    
+		    // Use ffmpeg's ffprobe to extract resolution information
             img_rect.setSize(extractResolution(files[i].string()));
-            vid->setMaximumSize(img_rect.size());
+            vid->setFixedSize(calculateScale());
+
             vid->show();
             player->play();
 		}
@@ -258,7 +265,7 @@ void PicoView::current(const int &i) {
 				p = p.scaled(label_size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 			}
 
-			img_label->setPixmap(p);
+			img_container->setPixmap(p);
 		}
 
 		dimensions->setText(QString::fromStdString(std::to_string(img_rect.width())+"x"+std::to_string(img_rect.height())));
@@ -380,9 +387,9 @@ void PicoView::sortby(QString s) {
 	current(std::distance(files.begin(), std::find(files.begin(), files.end(), _file)));
 }
 void PicoView::refresh() {
-	img_label->hide();
+	img_container->hide();
 	open_dir(path, cidx, false);
-	img_label->show();
+	img_container->show();
 }
 void PicoView::fullscreen() {
     QRect g = frameGeometry();
@@ -417,6 +424,7 @@ void PicoView::movieLooper(int f) {
 
 void PicoView::videoLooper(qint64 p) {
     if (player->duration() && p >= player->duration() - 15) {
+        std::cout << vid->width() << " " << vid->height() << std::endl;
         player->setPosition(0);
         player->play();
     }
@@ -459,6 +467,15 @@ QSize PicoView::extractResolution(std::string f) {
     return split(exec("ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=,:p=0 "+f), ',');
 }
 
+
+QSize PicoView::calculateScale() {
+	// Attempt to down scale the media to fit container (if necessary), without compromising the native aspect
+	double aspect = (double)img_rect.width() / (double)img_rect.height();
+	QSize scaled = QSize(img_rect.width(), img_rect.height());
+	if (img_rect.width() > label_size.width()) scaled = QSize(label_size.width(), label_size.width() / aspect);
+	if (scaled.height() > label_size.height()) scaled = QSize(label_size.height() * aspect, label_size.height());
+	return scaled;
+}
 void PicoWidget::resizeEvent(QResizeEvent* e) {	
 	QWidget::resizeEvent(e);
 	window->resizeEvent(e);

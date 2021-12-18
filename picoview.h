@@ -75,6 +75,7 @@ public:
     bool isVideo(fs::path f);
 
     QSize extractResolution(std::string);
+    QSize calculateScale();
     
 	void open_file(fs::path _file, bool checking = true);
 	void open_dir(fs::path _dir, size_t idx = 0, bool checking = true);
@@ -108,7 +109,8 @@ private:
 	QPalette palette;
 
 	QHBoxLayout* layout;
-	QVBoxLayout* img_canvas;
+	QVBoxLayout* canvas;
+	QHBoxLayout* media;
 	QHBoxLayout* tbar_layout;
 	QMenuBar* menu;
 
@@ -117,14 +119,13 @@ private:
 
 	QPushButton* _refr;
 	QPushButton* _fullscreen;
-	QLabel* img_label;
+	QLabel* img_container;
 	
 	QMovie* mov;
 	QImage img;
 	QWidget* vid_container;
 	QVideoWidget* vid;
 	QMediaPlayer* player;
-	QMediaPlaylist* playlist = NULL;
 	QRect img_rect;
 	QSize label_size;
 	int nframes;
