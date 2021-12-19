@@ -424,7 +424,6 @@ void PicoView::movieLooper(int f) {
 
 void PicoView::videoLooper(qint64 p) {
     if (player->duration() && p >= player->duration() - 15) {
-        std::cout << vid->width() << " " << vid->height() << std::endl;
         player->setPosition(0);
         player->play();
     }
