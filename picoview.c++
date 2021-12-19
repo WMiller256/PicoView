@@ -26,7 +26,7 @@ PicoView::PicoView(QPalette _palette, QWidget* parent) : QMainWindow(parent), pa
 		else filter += 	"*"+s+")";	
 	}
 
-	label_size = QSize(600, 800);
+	label_size = QSize(800, 400);
 
 	w = new PicoWidget(this, this);
 	w->setPalette(palette);
@@ -252,7 +252,7 @@ void PicoView::current(const int &i) {
             img_rect.setSize(extractResolution(files[i].string()));
             vid->setFixedSize(calculateScale());
 
-            vid->show();
+            vid_container->show();
             player->play();
 		}
 		else {
@@ -472,7 +472,7 @@ QSize PicoView::calculateScale() {
 	double aspect = (double)img_rect.width() / (double)img_rect.height();
 	QSize scaled = QSize(img_rect.width(), img_rect.height());
 	if (img_rect.width() > label_size.width()) scaled = QSize(label_size.width(), label_size.width() / aspect);
-	if (scaled.height() > label_size.height()) scaled = QSize(label_size.height() * aspect, label_size.height());
+	if (scaled.height() > label_size.height()) scaled = QSize(label_size.height() * aspect, label_size.height()) * 0.975;
 	return scaled;
 }
 void PicoWidget::resizeEvent(QResizeEvent* e) {	
